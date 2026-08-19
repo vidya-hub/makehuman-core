@@ -87,6 +87,10 @@ class LocalBackend:
         self._h().unequip_all_clothes()
         return "OK"
 
+    def unequip_hair(self):
+        self._h().unequip_hair()
+        return "OK"
+
     def get_equipped_clothes(self):
         return self._h().get_equipped_clothes()
 
@@ -110,8 +114,9 @@ class LocalBackend:
         self._h().load_mhm(path)
         return "OK"
 
-    def export(self, path, fmt):
-        return self._h().export(path, format=fmt)
+    def export(self, path, fmt, rig="deform", scale=None, feet_on_ground=True):
+        return self._h().export(path, format=fmt, rig=rig, scale=scale,
+                                feet_on_ground=feet_on_ground)
 
 
 # --------------------------------------------------------------------------
@@ -180,6 +185,9 @@ class SocketBackend:
     def unequip_all_clothes(self):
         return self._client.call("unequipAllClothes")
 
+    def unequip_hair(self):
+        return self._client.call("unequipHair")
+
     def get_equipped_clothes(self):
         return self._client.call("getEquippedClothes")
 
@@ -198,7 +206,8 @@ class SocketBackend:
     def load(self, path):
         return self._client.call("loadMHM", path=path)
 
-    def export(self, path, fmt):
+    def export(self, path, fmt, rig="deform", scale=None, feet_on_ground=True):
+        # The GUI exporter uses its own config; rig/scale are local-backend only.
         fn = self._EXPORT_FN.get(fmt)
         if fn is None:
             raise BackendError(f"unsupported export format {fmt!r}")

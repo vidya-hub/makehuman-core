@@ -205,7 +205,8 @@ def _load_pose(human, values, strict):
     if path:
         assets.set_pose(human, path)
         return
-    assets.state(human)["pose"] = values[1]
+    # Do not persist an unresolved path -- it would corrupt the next .mhm save.
+    assets.state(human)["pose"] = None
     if strict:
         raise RuntimeError("Could not resolve pose %s" % values[1])
 
@@ -218,7 +219,8 @@ def _load_expression(human, values, strict):
     if path:
         assets.set_expression(human, path)
         return
-    assets.state(human)["expression"] = values[1]
+    # Do not persist an unresolved path -- it would corrupt the next .mhm save.
+    assets.state(human)["expression"] = None
     if strict:
         raise RuntimeError("Could not resolve expression %s" % values[1])
 

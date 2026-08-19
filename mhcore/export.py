@@ -120,14 +120,49 @@ _EXPORTERS = {
 }
 
 
-def export(human, filepath, format=None, **kw):
-    """Export ``human`` to ``filepath``. Format inferred from extension if not given."""
+def export(human, filepath, format=None, rig="deform", scale=None, unit=None,
+           feet_on_ground=True, **kw):
+    """Export ``human`` to ``filepath``.
+
+    Defaults are Blender-friendly: metres (``scale=0.1``, ``unit="m"``) so the
+    character imports at real size, and for FBX/DAE a clean, skinned rig is
+    bound automatically.
+
+    rig: "deform" (default clean game rig), "full" (163-bone default rig),
+    "none" (unrigged mesh), or a path to a .mhskel file. Ignored for OBJ.
+    scale/unit: override the metre defaults (e.g. scale=1.0 unit="dm" for the
+    old decimetre output, or scale=0.01 for centimetre/Unreal).
+    """
     fmt = (format or os.path.splitext(filepath)[1].lstrip(".")).lower()
     fn = _EXPORTERS.get(fmt)
     if fn is None:
         raise ValueError(
             f"Unsupported export format {fmt!r}; use one of {sorted(set(_EXPORTERS))}")
-    return fn(human, filepath, **kw)
+
+    # MakeHuman works in decimetres. FBX writes a unit factor and DAE writes a
+    # <unit> tag, so at scale=1.0 both import at real size (~1.7 m) in Blender
+    # (verified). OBJ carries no unit metadata, so it must be pre-scaled to
+    # metres (0.1) or it comes in 10x too big.
+    if scale is None:
+        scale = 0.1 if fmt == "obj" else 1.0
+    if unit is None:
+        unit = "m" if fmt == "obj" else "dm"
+    kw.update(scale=scale, unit=unit, feet_on_ground=feet_on_ground)
+
+    rigged = fmt in ("fbx", "dae", "collada") and rig not in (None, "none")
+    if not rigged:
+        return fn(human, filepath, **kw)
+
+    # Bind a clean, fitted, weighted skeleton just for the export, then restore
+    # whatever skeleton the human had so export stays side-effect-free.
+    from . import assets
+    prev = human.getSkeleton()
+    skel = assets.resolve_export_skeleton(human, rig)
+    human.setSkeleton(skel)
+    try:
+        return fn(human, filepath, **kw)
+    finally:
+        human.setSkeleton(prev)
 
 
 def _ensure_dir(filepath):

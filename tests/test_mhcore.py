@@ -141,6 +141,20 @@ def test_fbx_export_keeps_bone_lengths():
     assert max(lengths) < 8.0, "bone local translation exploded: %s" % max(lengths)
 
 
+def test_helper_bones_are_short_for_export():
+    h = mhcore.new_human()
+    h.set_skeleton(mhcore.data_path("rigs/default.mhskel"))
+    import numpy as np
+    long_helpers = []
+    for b in h.human.getSkeleton().getBones():
+        n = b.name.lower()
+        if "oris" in n or "temporalis" in n or n.startswith("eye"):
+            L = float(np.linalg.norm(b.tailPos - b.headPos))
+            if L > 0.5:
+                long_helpers.append((b.name, L))
+    assert not long_helpers, "helper tails still long: %s" % long_helpers[:5]
+
+
 def test_default_rig_follows_child_body():
     h = mhcore.new_human()
     h.set_age(0.2).set_height(0.3)
@@ -203,3 +217,82 @@ def test_mhm_full_roundtrip(tmp_path):
                       if l.strip() and not l.startswith(("camera", "#", "version")))
 
     assert norm(a) == norm(b)
+
+
+# --------------------------------------------------------------------------
+# Export verification: assert the *exported file*, not just the in-memory model.
+# These target the four Blender symptoms the user reported.
+# --------------------------------------------------------------------------
+
+import re
+
+
+def _read(path):
+    with open(path) as f:
+        return f.read()
+
+
+def test_export_autorig_binds_and_metre_scale(tmp_path):
+    """Default export (no explicit set_skeleton) must be skinned and metre-scaled."""
+    h = mhcore.new_human()
+    h.set_gender(1.0).set_age(0.5)
+    dae = os.path.join(tmp_path, "a.dae")
+    h.export(dae)  # defaults: rig="deform", metres
+
+    s = _read(dae)
+    # bound armature with skin weights (symptom: "no weights / not bound")
+    assert s.count("<controller") >= 1
+    assert s.count("<vertex_weights") >= 1
+    assert 'type="JOINT"' in s
+    # real-world unit (symptom: "model huge"): DAE declares 1 unit = 0.1 m, so a
+    # ~17-unit (decimetre) human imports at ~1.7 m, not 17 m.
+    m = re.search(r'<unit meter="([0-9.]+)"', s)
+    assert m and abs(float(m.group(1)) - 0.1) < 1e-3
+    # no face-muscle spikes (symptom: "face/eye bones as cones")
+    assert not re.search(r'"(oris|levator|temporalis|oculi|risorius)', s)
+
+
+def test_export_metre_scale_is_human_sized():
+    h = mhcore.new_human()
+    height_dm = float(h.human.meshData.coord[:, 1].max()
+                      - h.human.meshData.coord[:, 1].min())
+    assert 1.4 < height_dm * 0.1 < 2.1, "human should be ~1.7 m at metre scale"
+
+
+def test_export_rig_none_is_unbound(tmp_path):
+    h = mhcore.new_human()
+    dae = os.path.join(tmp_path, "n.dae")
+    h.export(dae, rig="none")
+    assert "<controller" not in _read(dae)
+
+
+def test_export_rig_full_keeps_face_bones(tmp_path):
+    h = mhcore.new_human()
+    dae = os.path.join(tmp_path, "f.dae")
+    h.export(dae, rig="full")
+    s = _read(dae)
+    assert 'type="JOINT"' in s
+    assert re.search(r"oris|levator|temporalis", s), "full rig keeps face muscles"
+
+
+def test_deform_rig_is_clean_and_fully_skinned():
+    from mhcore import assets
+    h = mhcore.new_human()
+    h.set_age(0.3)
+    d = assets.build_deform_skeleton(h.human)
+    names = [b.name for b in d.getBones()]
+    assert names, "deform rig has bones"
+    assert not any(assets._is_face_muscle(n) for n in names), "no face-muscle bones"
+    vw = d.getVertexWeights()
+    assert vw is not None and len(vw.data) == len(names), "every deform bone is weighted"
+
+
+def test_export_bound_after_morph_then_rig(tmp_path):
+    """Morphing after set_skeleton must still export a bound, body-sized rig."""
+    h = mhcore.new_human()
+    h.set_skeleton(mhcore.data_path("rigs/default.mhskel"))
+    h.set_age(0.2).set_height(0.2)  # shrink AFTER rigging
+    dae = os.path.join(tmp_path, "m.dae")
+    h.export(dae, rig="full")
+    s = _read(dae)
+    assert s.count("<controller") >= 1 and "<vertex_weights" in s

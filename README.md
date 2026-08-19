@@ -109,6 +109,11 @@ socket-bridge for a running MakeHuman GUI is in [`mcp-server/socket-bridge/`](mc
 
 ## Status / limitations
 
+- **Blender-ready export by default.** FBX/DAE bind a clean, skinned "deform"
+  rig automatically (no separate `set_skeleton` call, no face-bone spikes), and
+  all formats import at real human size (~1.7 m). Use `rig="full"` for the
+  complete 163-bone rig, `rig="none"` for an unrigged mesh, or `scale=`/`unit=`
+  to override (e.g. `scale=0.01` for centimetre pipelines).
 - Full `.mhm` round-trip: modifiers, skeleton, proxies (clothes/hair/eyes/…),
   skin + per-proxy materials all save and reload faithfully.
 - Export: OBJ, FBX, DAE.

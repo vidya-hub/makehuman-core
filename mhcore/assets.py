@@ -217,10 +217,137 @@ def set_skeleton(human, path):
         if base is not None:
             skel.autoBuildWeightReferences(base)
             skel.addReferencePlanes(base)
+            # Explicitly fit joints to the current (morphed) mesh instead of
+            # relying on a getSkeleton() side effect.
+            skel.updateJoints(human.meshData, ref_skel=base)
 
     human.setSkeleton(skel)
-    human.getSkeleton()
+    _clamp_helper_bone_tails(human.getSkeleton())
     state(human)["skeleton"] = path
+    return skel
+
+
+_HELPER_BONE = (
+    "oris", "oculi", "temporalis", "levator", "special", "tongue",
+    "risorius", "nasalis", "mentalis", "buccinator", "masseter",
+    "zygomaticum", "labii", "depressor", "frontalis", "orbicularis",
+)
+
+
+def _clamp_helper_bone_tails(skel, max_len=0.25):
+    """Face/plane helper bones use distant joints as tails. In Blender those
+    become 2 m cones (the star/pyramid). Keep heads; shorten tails only.
+    Weights stay on the bone name, so skinning is unchanged.
+    """
+    import numpy as np
+    if skel is None:
+        return
+    for bone in skel.getBones():
+        n = bone.name.lower()
+        d = bone.tailPos - bone.headPos
+        length = float(np.linalg.norm(d))
+        helper = any(p in n for p in _HELPER_BONE) or n.startswith("eye")
+        if not helper:
+            continue          # never touch real deform bones (limbs/spine/…)
+        if length <= max_len or length < 1e-8:
+            continue
+        bone.tailPos[:] = bone.headPos + d * (max_len / length)
+    skel.build()
+
+
+# Face-muscle helper bones in the default rig. In Blender they render as a
+# star-burst of cones and are not needed for skeletal-mesh export. The deform
+# rig drops them and folds their weights into the nearest kept bone (head/jaw).
+_FACE_MUSCLE_PREFIX = (
+    "levator", "special", "temporalis", "oris", "oculi", "risorius",
+    "orbicularis", "buccinator", "nasalis", "mentalis", "depressor",
+    "frontalis", "zygomatic", "labii", "masseter",
+)
+
+
+def _is_face_muscle(name):
+    n = name.lower()
+    return any(n.startswith(p) for p in _FACE_MUSCLE_PREFIX)
+
+
+def build_deform_skeleton(human, drop=_is_face_muscle):
+    """Derive a clean, skinned skeleton from the base rig for game/Blender export.
+
+    Prunes the dense face-muscle helper bones (the source of the Blender
+    star-burst) and merges their vertex weights into the nearest retained bone
+    via MakeHuman's own weight_reference_bones remapping. The result tracks the
+    current body morph and stays fully skinned.
+    """
+    import skeleton as skeleton_mod
+
+    base = human.getBaseSkeleton()
+    if base is None:
+        raise RuntimeError("No base skeleton to derive a deform rig from")
+
+    full = base.createFromPose()                 # follows the current morph
+    ref_weights = human.getVertexWeights(full)   # weights keyed by full bone names
+    bones = full.getBones()                      # breadth-first: parents first
+    keep = {b.name for b in bones if not drop(b.name)}
+
+    # nearest kept ancestor for every bone (parents processed first)
+    nearest = {}
+    for b in bones:
+        if b.name in keep:
+            nearest[b.name] = b.name
+        else:
+            nearest[b.name] = nearest[b.parent.name] if b.parent else None
+
+    # dropped bones fold their weights into their nearest kept ancestor
+    folded = {}
+    for b in bones:
+        if b.name not in keep:
+            tgt = nearest[b.name]
+            if tgt:
+                folded.setdefault(tgt, []).append(b.name)
+
+    deform = skeleton_mod.Skeleton("deform")
+    deform.scale = full.scale
+    deform.joint_pos_idxs = dict(full.joint_pos_idxs)
+    deform.planes = dict(full.planes)
+    deform.plane_map_strategy = full.plane_map_strategy
+
+    for b in bones:
+        if b.name not in keep:
+            continue
+        parent_name = nearest[b.parent.name] if b.parent else None
+        wref = [b.name] + folded.get(b.name, [])
+        deform.addBone(b.name, parent_name, b.headJoint, b.tailJoint, b.roll,
+                       reference_bones=[b.name], weight_reference_bones=wref)
+
+    deform.updateJoints(human.meshData)
+    deform.vertexWeights = deform.getVertexWeights(ref_weights, force_remap=True)
+    return deform
+
+
+def resolve_export_skeleton(human, rig):
+    """Return the skeleton to bind for an FBX/DAE export.
+
+    rig: "deform" (default, clean game rig), "full" (163-bone default rig),
+    "none" (unrigged), or a path to a .mhskel file.
+    """
+    if rig in (None, "none"):
+        return None
+    if rig == "deform":
+        return build_deform_skeleton(human)
+    if rig == "full":
+        base = human.getBaseSkeleton()
+        skel = base.createFromPose() if base is not None else None
+        if skel is not None:
+            _clamp_helper_bone_tails(skel)
+        return skel
+    # treat as a .mhskel path
+    import skeleton as skeleton_mod
+    skel = skeleton_mod.load(rig, human.meshData)
+    base = human.getBaseSkeleton()
+    if base is not None:
+        skel.autoBuildWeightReferences(base)
+        skel.addReferencePlanes(base)
+    skel.updateJoints(human.meshData, ref_skel=base)
     return skel
 
 

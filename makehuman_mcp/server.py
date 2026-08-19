@@ -166,6 +166,24 @@ def list_available_eyelashes() -> str:
 
 
 @mcp.tool()
+def list_available_eyes() -> str:
+    """List paths to all installed eye assets (.mhclo files)."""
+    return _safe(lambda: _b().list_available("eyes"))
+
+
+@mcp.tool()
+def list_available_teeth() -> str:
+    """List paths to all installed teeth assets (.mhclo files)."""
+    return _safe(lambda: _b().list_available("teeth"))
+
+
+@mcp.tool()
+def list_available_tongue() -> str:
+    """List paths to all installed tongue assets (.mhclo files)."""
+    return _safe(lambda: _b().list_available("tongue"))
+
+
+@mcp.tool()
 def list_available_poses() -> str:
     """List paths to bundled pose BVH files (e.g. tpose)."""
     return _safe(lambda: _b().list_available("poses"))
@@ -209,6 +227,30 @@ def unequip_all_clothes() -> str:
 def equip_hair(path: str) -> str:
     """Set the hair by its .mhclo path (replaces any current hair)."""
     return _safe(lambda: _b().equip("hair", path))
+
+
+@mcp.tool()
+def unequip_hair() -> str:
+    """Remove the currently equipped hair."""
+    return _safe(lambda: _b().unequip_hair())
+
+
+@mcp.tool()
+def equip_eyes(path: str) -> str:
+    """Set the eyes by their .mhclo path (from list_available_eyes)."""
+    return _safe(lambda: _b().equip("eyes", path))
+
+
+@mcp.tool()
+def equip_teeth(path: str) -> str:
+    """Set the teeth by their .mhclo path (from list_available_teeth)."""
+    return _safe(lambda: _b().equip("teeth", path))
+
+
+@mcp.tool()
+def equip_tongue(path: str) -> str:
+    """Set the tongue by its .mhclo path (from list_available_tongue)."""
+    return _safe(lambda: _b().equip("tongue", path))
 
 
 @mcp.tool()
@@ -285,14 +327,23 @@ def load_character(path: str) -> str:
 
 
 @mcp.tool()
-def export_character(path: str, format: str = "obj") -> str:
-    """Export the current character mesh to a 3D file.
+def export_character(path: str, format: str = "fbx", rig: str = "deform",
+                     scale: float = None, feet_on_ground: bool = True) -> str:
+    """Export the current character to a 3D file (Blender-ready by default).
 
-    'format' is one of: obj, fbx, dae (mhx2 requires the socket backend with the
-    MHX2 plugin installed).
+    'format': obj, fbx, or dae. Defaults produce a metre-scale model with a
+    clean, skinned armature bound automatically -- no separate set_skeleton call
+    needed.
+
+    'rig' (fbx/dae): "deform" (default; clean game rig, no face-bone spikes),
+    "full" (complete 163-bone rig incl. face muscles), or "none" (mesh only).
+    'scale': metres by default (0.1 of MakeHuman's internal decimetres). Pass
+    1.0 for decimetres, 0.01 for centimetres (Unreal).
+    'feet_on_ground': place the feet at Y=0.
     """
     fmt = format.lower().strip()
-    return _safe(lambda: _b().export(path, fmt))
+    return _safe(lambda: _b().export(path, fmt, rig=rig, scale=scale,
+                                     feet_on_ground=feet_on_ground))
 
 
 def main() -> None:
