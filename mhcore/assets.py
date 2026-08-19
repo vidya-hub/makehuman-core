@@ -26,6 +26,7 @@ _SKIN_DIR = ("skins", "*.mhmat")
 _FILE_KINDS = {
     "poses": ("poses", "*.bvh"),
     "expressions": ("expressions", "*.mhpose"),
+    "rigs": ("rigs", "*.mhskel"),
 }
 _COMPARE_BONE = "upperleg02.L"
 _face_units = None
@@ -185,10 +186,40 @@ def state(human):
 
 
 def set_skeleton(human, path):
-    import skeleton as skeleton_mod
-    skel = skeleton_mod.load(path, human.meshData)
-    human.setSkeleton(skel)
+    """Attach the *export* skeleton. Posing still uses the base/reference rig.
+
+    For the bundled default.mhskel the GUI clones the live base skeleton
+    (createFromPose) so joints already match the morphed mesh. Reloading
+    default.mhskel from disk is what made exported armatures drift.
+    """
+    import os
+    import getpath
+
+    if not path:
+        human.setSkeleton(None)
+        state(human)["skeleton"] = None
+        return None
+
     human.applyAllTargets()
+    adapt_all_proxies(human)
+    base = human.getBaseSkeleton()
+    default = getpath.getSysDataPath("rigs/default.mhskel")
+    try:
+        is_default = os.path.samefile(path, default)
+    except OSError:
+        is_default = os.path.basename(path) == "default.mhskel"
+
+    if is_default and base is not None:
+        skel = base.createFromPose()
+    else:
+        import skeleton as skeleton_mod
+        skel = skeleton_mod.load(path, human.meshData)
+        if base is not None:
+            skel.autoBuildWeightReferences(base)
+            skel.addReferencePlanes(base)
+
+    human.setSkeleton(skel)
+    human.getSkeleton()
     state(human)["skeleton"] = path
     return skel
 

@@ -98,6 +98,10 @@ class LocalBackend:
         self._h().set_expression(path)
         return "OK"
 
+    def set_skeleton(self, path):
+        self._h().set_skeleton(path)
+        return "OK"
+
     # -- persist / export --------------------------------------------------
     def save(self, path):
         return self._h().save_mhm(path)
@@ -184,6 +188,9 @@ class SocketBackend:
 
     def set_expression(self, path):
         raise BackendError("set_expression is only available on the local backend")
+
+    def set_skeleton(self, path):
+        raise BackendError("set_skeleton is only available on the local backend")
 
     def save(self, path):
         return self._client.call("saveMHM", path=path)

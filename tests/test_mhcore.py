@@ -122,6 +122,37 @@ def test_unequip_clothes_and_hair():
         assert h.human.hairProxy is None
 
 
+def test_fbx_export_keeps_bone_lengths():
+    """FBX config must not inflate bone translations into a star-burst."""
+    from mhcore.export import _fbx_config
+    import numpy as np
+    h = mhcore.new_human()
+    h.set_skeleton(mhcore.data_path("rigs/default.mhskel"))
+    cfg = _fbx_config(h.human)
+    assert cfg.scale == 1.0
+    skel = h.human.getSkeleton()
+    if cfg.scale != 1:
+        skel = skel.scaled(cfg.scale)
+    lengths = [
+        float(np.linalg.norm(
+            b.getRelativeMatrix(cfg.meshOrientation, cfg.localBoneAxis, cfg.offset)[:3, 3]))
+        for b in skel.getBones() if b.parent
+    ]
+    assert max(lengths) < 8.0, "bone local translation exploded: %s" % max(lengths)
+
+
+def test_default_rig_follows_child_body():
+    h = mhcore.new_human()
+    h.set_age(0.2).set_height(0.3)
+    h.set_skeleton(mhcore.data_path("rigs/default.mhskel"))
+    skel = h.human.getSkeleton()
+    head = skel.getBone("head")
+    body_ymax = float(h.human.meshData.coord[:, 1].max())
+    head_y = float(head.getRestTailPos()[1])
+    assert abs(head_y - body_ymax) < 2.0, (
+        "head bone y=%.3f vs mesh top=%.3f" % (head_y, body_ymax))
+
+
 def test_set_pose_deforms_mesh():
     h = mhcore.new_human()
     poses = h.list_available("poses")

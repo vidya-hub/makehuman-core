@@ -177,6 +177,12 @@ def list_available_expressions() -> str:
     return _safe(lambda: _b().list_available("expressions"))
 
 
+@mcp.tool()
+def list_available_rigs() -> str:
+    """List paths to bundled skeleton .mhskel files (usually just default)."""
+    return _safe(lambda: _b().list_available("rigs"))
+
+
 # --------------------------------------------------------------------------
 # Assets: equip / unequip. 'path' comes from a list_available_* call.
 # --------------------------------------------------------------------------
@@ -237,6 +243,16 @@ def set_pose(path: str) -> str:
     Pass an empty path to clear the pose.
     """
     return _safe(lambda: _b().set_pose(path))
+
+
+@mcp.tool()
+def set_skeleton(path: str) -> str:
+    """Set the export skeleton from a .mhskel path (from list_available_rigs).
+
+    Always do this after macros/clothes, before export. Use the bundled
+    default.mhskel. Posing uses the internal base rig; this one is for FBX/DAE.
+    """
+    return _safe(lambda: _b().set_skeleton(path))
 
 
 @mcp.tool()

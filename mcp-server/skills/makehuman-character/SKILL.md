@@ -30,13 +30,21 @@ then assets, then persist:
 3. **Assets** (optional) — discover with `list_available_*`, then `equip_*` /
    `set_skin`. Asset lists are **machine-specific** (they depend on what is
    installed), so always list before equipping; never guess a path.
-4. **Pose / expression** (optional) — `list_available_poses` then `set_pose`.
-   Expressions are `.mhpose` files (`list_available_expressions`; the bundle
-   may ship none). Pose and expression are local-backend only.
-5. **Persist** — `save_character(path)` writes a native `.mhm` (captures
-   everything: modifiers, materials, skeleton, equipped assets, pose). Optionally
-   `export_character(path, format)` for `obj` | `fbx` | `dae` (`mhx2` is
-   socket-backend only).
+4. **Export skeleton** — after the body and clothes are final, call
+   `list_available_rigs` then `set_skeleton` with the bundled `default.mhskel`.
+   Do this **once, last**, before save/export. The default rig must be taken
+   from the live morphed body (the server does this). Do not assign a pose
+   first and then a different rig file.
+5. **Pose / expression** (optional, local backend) — `list_available_poses`
+   then `set_pose`. Expressions are `.mhpose` files. Pose uses the internal
+   base rig; it is not a substitute for step 4.
+6. **Persist** — `save_character(path)` writes a native `.mhm`. For a usable
+   armature in Blender, `export_character(path, format="fbx")` — **not OBJ**.
+   DAE also carries a skeleton. `mhx2` is socket-backend only.
+
+In Blender: File → Import → FBX. Leave scale at 1.0. Do **not** enable
+Automatic Bone Orientation (it turns the default MH rig into a star-burst).
+The mesh is in decimetres (~16 units tall for an adult).
 
 Use `new_character` to discard the current human and start over.
 
