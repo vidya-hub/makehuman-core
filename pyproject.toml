@@ -1,0 +1,30 @@
+[project]
+name = "mhcore"
+version = "0.1.0"
+description = "GUI-free (no Qt, no OpenGL) MakeHuman core: build, save and export 3D human characters programmatically."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "vidya-hub" }]
+keywords = ["makehuman", "3d", "character", "mesh", "headless", "obj", "fbx"]
+dependencies = [
+    "numpy>=1.17.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/vidya-hub/makehuman-core"
+Upstream = "http://www.makehumancommunity.org/"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# The vendored MakeHuman source (~5 MB) and bundled data (~430 MB) live at the
+# repo root and are required at runtime. Because of the data size this project
+# is intended to be used from a clone via an editable install
+# (`pip install -e .`) rather than distributed as a wheel.
+packages = ["mhcore"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

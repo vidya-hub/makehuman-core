@@ -1,0 +1,3 @@
+# Keep all vendored MakeHuman source and bundled data byte-for-byte; do not
+# perform any line-ending conversion on checkout/commit.
+* -text

@@ -1,0 +1,98 @@
+"""Tests for the GUI-free mhcore library.
+
+These must pass in an environment with only numpy installed (no PyQt5, no
+PyOpenGL) -- that is the core guarantee of the project.
+"""
+
+import os
+
+import pytest
+
+import mhcore
+
+
+@pytest.fixture(scope="module")
+def human():
+    return mhcore.new_human()
+
+
+def test_no_gui_dependencies_installed():
+    # Guard: the whole point is that these are NOT required.
+    for mod in ("PyQt5", "OpenGL"):
+        with pytest.raises(ImportError):
+            __import__(mod)
+
+
+def test_base_human_loads(human):
+    assert human.vertex_count > 10000
+    mods = human.list_modifiers()
+    assert len(mods) > 200
+    assert "macrodetails/Gender" in mods
+
+
+def test_macros_change_mesh():
+    h = mhcore.new_human()
+    before = h.human.meshData.coord.copy()
+    h.set_gender(1.0).set_age(0.9).set_weight(0.9).set_muscle(0.9)
+    after = h.human.meshData.coord
+    assert not (before == after).all(), "setting macros should morph the mesh"
+
+
+def test_apply_modifier_and_unknown():
+    h = mhcore.new_human()
+    h.apply_modifier("head/head-oval", 0.5)
+    assert h.get_applied_targets()  # non-empty
+    with pytest.raises(KeyError):
+        h.apply_modifier("does/not-exist", 0.5)
+
+
+@pytest.mark.parametrize("fmt", ["obj", "fbx", "dae"])
+def test_export_formats(tmp_path, fmt):
+    h = mhcore.new_human()
+    h.set_gender(0.8).set_age(0.5)
+    out = os.path.join(tmp_path, f"c.{fmt}")
+    h.export(out)
+    assert os.path.getsize(out) > 1000
+
+
+def test_asset_discovery(human):
+    for kind in ("clothes", "hair", "eyes", "skins"):
+        assert isinstance(human.list_available(kind), list)
+
+
+def test_equip_and_export(tmp_path):
+    h = mhcore.new_human()
+    clothes = h.list_available("clothes")
+    if not clothes:
+        pytest.skip("no clothes bundled")
+    h.equip_clothes(clothes[0])
+    out = os.path.join(tmp_path, "dressed.obj")
+    h.export(out)
+    groups = [l.split()[1] for l in open(out) if l.startswith("g ")]
+    assert len(groups) >= 2  # body + at least one proxy
+
+
+def test_mhm_full_roundtrip(tmp_path):
+    h = mhcore.new_human()
+    h.set_gender(0.9).set_age(0.55).set_muscle(0.7)
+    h.apply_modifier("head/head-oval", 0.4)
+    h.set_skeleton(mhcore.data_path("rigs/default.mhskel"))
+    for kind, equip in (("clothes", h.equip_clothes), ("hair", h.equip_hair),
+                        ("eyes", h.equip_eyes)):
+        avail = h.list_available(kind)
+        if avail:
+            equip(avail[0])
+    skins = h.list_available("skins")
+    if skins:
+        h.set_skin(skins[0])
+
+    a = h.save_mhm(os.path.join(tmp_path, "a.mhm"))
+    h2 = mhcore.new_human()
+    h2.load_mhm(a)
+    b = h2.save_mhm(os.path.join(tmp_path, "b.mhm"))
+
+    def norm(f):
+        return sorted(l.strip() for l in open(f)
+                      if l.strip() and not l.startswith(("camera", "#", "version")))
+
+    assert norm(a) == norm(b)
