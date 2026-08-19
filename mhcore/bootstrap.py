@@ -17,8 +17,21 @@ import os
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(_HERE)                 # repo root (contains data/, _vendor/)
-_VENDOR = os.path.join(_ROOT, "_vendor")
+_CLONE_ROOT = os.path.dirname(_HERE)  # repo root when running from a checkout
+
+
+def _vendor_dir() -> str:
+    bundled = os.path.join(_HERE, "_vendor")
+    if os.path.isdir(os.path.join(bundled, "lib")):
+        return bundled
+    repo = os.path.join(_CLONE_ROOT, "_vendor")
+    if os.path.isdir(os.path.join(repo, "lib")):
+        return repo
+    raise RuntimeError("MakeHuman vendor tree not found")
+
+
+_VENDOR = _vendor_dir()
+_ROOT = _CLONE_ROOT
 _DATA = os.path.join(_ROOT, "data")
 
 # MakeHuman's flat import layout: these dirs are all added to sys.path so that
@@ -38,6 +51,7 @@ _initialized = False
 
 
 def data_path(sub: str = "") -> str:
+    init()
     return os.path.join(_DATA, sub) if sub else _DATA
 
 
@@ -47,12 +61,20 @@ def _setup_syspath() -> None:
             sys.path.insert(0, p)
 
 
+def _resolve_roots() -> None:
+    global _ROOT, _DATA
+    from .datapack import resolve_data_root
+    _ROOT = resolve_data_root(_CLONE_ROOT)
+    _DATA = os.path.join(_ROOT, "data")
+
+
 def init() -> None:
     """Idempotently prepare the headless environment (no Human created yet)."""
     global _initialized
     if _initialized:
         return
 
+    _resolve_roots()
     _setup_syspath()
 
     # makehuman.py main() normally sets these; provide values so the .mhm

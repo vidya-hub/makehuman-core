@@ -1,15 +1,19 @@
 [project]
-name = "mhcore"
+name = "makehuman-mcp"
 version = "0.1.0"
-description = "GUI-free (no Qt, no OpenGL) MakeHuman core: build, save and export 3D human characters programmatically."
+description = "GUI-free MakeHuman core + MCP server: build, save and export 3D human characters."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "AGPL-3.0-or-later" }
 authors = [{ name = "vidya-hub" }]
-keywords = ["makehuman", "3d", "character", "mesh", "headless", "obj", "fbx"]
+keywords = ["makehuman", "3d", "character", "mcp", "headless", "obj", "fbx"]
 dependencies = [
     "numpy>=1.17.4",
+    "mcp[cli]>=1.2.0,<2.0",
 ]
+
+[project.scripts]
+makehuman-mcp = "makehuman_mcp.server:main"
 
 [project.urls]
 Homepage = "https://github.com/vidya-hub/makehuman-core"
@@ -19,12 +23,19 @@ Upstream = "http://www.makehumancommunity.org/"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/data",
+    "/out",
+    "/.venv",
+    "/mcp-server/.venv",
+]
+
 [tool.hatch.build.targets.wheel]
-# The vendored MakeHuman source (~5 MB) and bundled data (~430 MB) live at the
-# repo root and are required at runtime. Because of the data size this project
-# is intended to be used from a clone via an editable install
-# (`pip install -e .`) rather than distributed as a wheel.
-packages = ["mhcore"]
+packages = ["mhcore", "makehuman_mcp"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"_vendor" = "mhcore/_vendor"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

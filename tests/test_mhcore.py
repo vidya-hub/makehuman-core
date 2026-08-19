@@ -16,6 +16,10 @@ def human():
     return mhcore.new_human()
 
 
+def test_data_root_from_clone():
+    assert os.path.isfile(mhcore.data_path("3dobjs/base.obj"))
+
+
 def test_no_gui_dependencies_installed():
     # Guard: the whole point is that these are NOT required.
     for mod in ("PyQt5", "OpenGL"):

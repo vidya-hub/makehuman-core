@@ -10,17 +10,57 @@ it through a small headless shim (`mhcore/`) that stubs the GUI/GL modules and
 supplies a headless application object. The character/geometry pipeline in
 MakeHuman is pure numpy, so nothing here needs a display or a GPU.
 
-## Install
+## Use with a coding agent
 
-The repository bundles ~430 MB of MakeHuman runtime data, so use an editable
-install from a clone (not a wheel):
+Needs [uv](https://docs.astral.sh/uv/). First launch downloads ~430 MB of
+character data to `~/.cache/mhcore` (one time).
+
+OpenCode / Cursor (`opencode.json`):
+
+```json
+{
+  "mcp": {
+    "makehuman": {
+      "type": "local",
+      "command": ["uvx", "makehuman-mcp"]
+    }
+  }
+}
+```
+
+Claude Desktop / Claude Code (`claude_desktop_config.json` / `.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "makehuman": {
+      "command": "uvx",
+      "args": ["makehuman-mcp"]
+    }
+  }
+}
+```
+
+Until the package is on PyPI, point uvx at this repo:
+
+```json
+"command": ["uvx", "--from", "git+https://github.com/vidya-hub/makehuman-core", "makehuman-mcp"]
+```
+
+## Library install
+
+A git clone already contains the data. Editable install:
 
 ```bash
 git clone https://github.com/vidya-hub/makehuman-core.git
 cd makehuman-core
 python3 -m venv .venv
-./.venv/bin/pip install -e .    # only dependency: numpy
+./.venv/bin/pip install -e .
 ```
+
+Or `uvx makehuman-mcp` / `pip install makehuman-mcp` — data is fetched on first
+`import mhcore` if `data/` is not next to the package. Override with
+`MHCORE_DATA=/path/to/data`.
 
 ## Usage
 
@@ -50,9 +90,8 @@ h.export("out/hero.obj")                 # also .fbx, .dae
 
 See `examples/build_character.py` for a runnable end-to-end script.
 
-An MCP server that drives this library in-process (no running MakeHuman) lives
-in [`mcp-server/`](mcp-server/). See that README to install and register it
-with a client.
+The MCP server is the `makehuman-mcp` console script (same package). An optional
+socket-bridge for a running MakeHuman GUI is in [`mcp-server/socket-bridge/`](mcp-server/socket-bridge/).
 
 ## API (`mhcore.MHHuman`)
 
