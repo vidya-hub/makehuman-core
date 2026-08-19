@@ -79,10 +79,27 @@ def _load_proxy(human, path, proxy_type):
     return p
 
 
+def adapt_all_proxies(human, fit_to_posed=False):
+    """Refit every attached proxy (clothes/hair/eyes/…) to the current body.
+
+    loadMeshAndObject only loads the authored OBJ. The GUI's proxy chooser
+    calls proxy.update() on every modifier change; we have to do that here.
+    """
+    for pxy in human.getProxies(includeHumanProxy=True):
+        if pxy is None or getattr(pxy, "object", None) is None:
+            continue
+        obj = pxy.object
+        mesh = obj.getSeedMesh() if hasattr(obj, "getSeedMesh") else None
+        if mesh is None:
+            mesh = obj.mesh
+        pxy.update(mesh, fit_to_posed)
+        mesh.update()
+
+
 def equip_clothes(human, path):
     p = _load_proxy(human, path, "Clothes")
     human.addClothesProxy(p)
-    human.applyAllTargets()
+    _apply(human)
     return p.uuid
 
 
@@ -93,50 +110,55 @@ def unequip_clothes(human, path):
     for uuid, pxy in dict(human.clothesProxies).items():
         if pxy is not None and getpath.canonicalPath(pxy.file) == target:
             human.removeClothesProxy(uuid)
-            human.applyAllTargets()
+            _apply(human)
             return True
     return False
+
+
+def _apply(human, fit_to_posed=False):
+    human.applyAllTargets()
+    adapt_all_proxies(human, fit_to_posed=fit_to_posed)
 
 
 def unequip_all_clothes(human):
     for uuid in list(human.clothesProxies.keys()):
         human.removeClothesProxy(uuid)
-    human.applyAllTargets()
+    _apply(human)
 
 
 def unequip_hair(human):
     human.setHairProxy(None)
-    human.applyAllTargets()
+    _apply(human)
 
 
 def equip_hair(human, path):
     human.setHairProxy(_load_proxy(human, path, "Hair"))
-    human.applyAllTargets()
+    _apply(human)
 
 
 def equip_eyes(human, path):
     human.setEyesProxy(_load_proxy(human, path, "Eyes"))
-    human.applyAllTargets()
+    _apply(human)
 
 
 def equip_eyebrows(human, path):
     human.setEyebrowsProxy(_load_proxy(human, path, "Eyebrows"))
-    human.applyAllTargets()
+    _apply(human)
 
 
 def equip_eyelashes(human, path):
     human.setEyelashesProxy(_load_proxy(human, path, "Eyelashes"))
-    human.applyAllTargets()
+    _apply(human)
 
 
 def equip_teeth(human, path):
     human.setTeethProxy(_load_proxy(human, path, "Teeth"))
-    human.applyAllTargets()
+    _apply(human)
 
 
 def equip_tongue(human, path):
     human.setTongueProxy(_load_proxy(human, path, "Tongue"))
-    human.applyAllTargets()
+    _apply(human)
 
 
 def set_skin(human, path):
@@ -229,6 +251,7 @@ def _apply_pose(human, filepath):
     human.setActiveAnimation(anim.name)
     human.setToFrame(0, update=False)
     human.setPosed(True)
+    adapt_all_proxies(human, fit_to_posed=True)
 
 
 def _clear_pose(human):
@@ -287,6 +310,7 @@ def _apply_expression(human, mhpose_path):
     human.setActiveAnimation("expr-lib-pose")
     human.setPosed(True)
     human.refreshPose()
+    adapt_all_proxies(human, fit_to_posed=True)
 
 
 def _clear_expression(human):

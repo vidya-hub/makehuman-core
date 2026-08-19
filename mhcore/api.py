@@ -30,6 +30,7 @@ class MHHuman:
 
     def _apply(self):
         self._h.applyAllTargets()
+        _assets.adapt_all_proxies(self._h)
 
     # -- body macros (0.0 - 1.0) ------------------------------------------
     def set_gender(self, value):

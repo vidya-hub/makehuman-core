@@ -72,6 +72,26 @@ def test_equip_and_export(tmp_path):
     assert len(groups) >= 2  # body + at least one proxy
 
 
+def _y_extent(coords):
+    return float(coords[:, 1].max() - coords[:, 1].min())
+
+
+def test_clothes_fit_child_body():
+    """Clothes proxies must shrink with the body, not stay at adult authored size."""
+    h = mhcore.new_human()
+    clothes = h.list_available("clothes")
+    if not clothes:
+        pytest.skip("no clothes bundled")
+    h.set_age(0.2).set_height(0.3)
+    h.equip_clothes(clothes[0])
+    body_ymax = float(h.human.meshData.coord[:, 1].max())
+    pxy = next(iter(h.human.clothesProxies.values()))
+    cloth_ymax = float(pxy.object.mesh.coord[:, 1].max())
+    assert cloth_ymax <= body_ymax + 0.3, (
+        "clothes still adult-sized: body_ymax=%.3f clothes_ymax=%.3f"
+        % (body_ymax, cloth_ymax))
+
+
 def test_unequip_clothes_and_hair():
     h = mhcore.new_human()
     clothes = h.list_available("clothes")
