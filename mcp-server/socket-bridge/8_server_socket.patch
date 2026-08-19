@@ -1,0 +1,315 @@
+diff --git a/plugins/8_server_socket/__init__.py b/plugins/8_server_socket/__init__.py
+index 7ddb3b1d..f8a5635f 100644
+--- a/plugins/8_server_socket/__init__.py
++++ b/plugins/8_server_socket/__init__.py
+@@ -38,6 +38,8 @@ if isPy3:
+     from .dirops import SocketDirOps
+     from .meshops import SocketMeshOps
+     from .modops import SocketModifierOps
++    from .assetops import SocketAssetOps
++    from .fileops import SocketFileOps
+     from .workerthread import WorkerThread
+ 
+ class SocketTaskView(gui3d.TaskView):
+@@ -113,6 +115,8 @@ class SocketTaskView(gui3d.TaskView):
+             self.dirops = SocketDirOps(self)
+             self.meshops = SocketMeshOps(self)
+             self.modops = SocketModifierOps(self)
++            self.assetops = SocketAssetOps(self)
++            self.fileops = SocketFileOps(self)
+             if self.socketConfig.get('acceptConnections'):
+                 self.accToggleButton.setChecked(True)
+                 self.openSocket()
+@@ -163,6 +167,12 @@ class SocketTaskView(gui3d.TaskView):
+         if self.modops.hasOp(data.function):
+             ops = self.modops
+ 
++        if self.assetops.hasOp(data.function):
++            ops = self.assetops
++
++        if self.fileops.hasOp(data.function):
++            ops = self.fileops
++
+         if ops:
+             jsonCall = ops.evaluateOp(conn,data)
+         else:
+diff --git a/plugins/8_server_socket/assetops.py b/plugins/8_server_socket/assetops.py
+new file mode 100644
+index 00000000..f3dacce9
+--- /dev/null
++++ b/plugins/8_server_socket/assetops.py
+@@ -0,0 +1,129 @@
++#!/usr/bin/python3
++# -*- coding: utf-8 -*-
++
++"""
++Asset operations for the MakeHuman server socket bridge.
++
++Wraps the mhapi.assets namespace so a socket client (for example the
++standalone MCP server) can discover installed assets and equip / unequip
++clothes, hair, eyebrows, eyelashes and skins.
++
++All handlers follow the AbstractOp convention: they receive (conn, jsonCall)
++and set jsonCall.data, or call jsonCall.setError(...) on failure.
++"""
++
++import material
++
++from .abstractop import AbstractOp
++
++
++class SocketAssetOps(AbstractOp):
++
++    def __init__(self, sockettaskview):
++        super().__init__(sockettaskview)
++
++        # Discovery (return lists of full paths to installed assets)
++        self.functions["getAvailableClothes"] = self.getAvailableClothes
++        self.functions["getAvailableHair"] = self.getAvailableHair
++        self.functions["getAvailableEyebrows"] = self.getAvailableEyebrows
++        self.functions["getAvailableEyelashes"] = self.getAvailableEyelashes
++        self.functions["getAvailableSkins"] = self.getAvailableSkins
++
++        # Equip / unequip
++        self.functions["equipClothes"] = self.equipClothes
++        self.functions["unequipClothes"] = self.unequipClothes
++        self.functions["unequipAllClothes"] = self.unequipAllClothes
++        self.functions["equipHair"] = self.equipHair
++        self.functions["unequipHair"] = self.unequipHair
++        self.functions["equipEyebrows"] = self.equipEyebrows
++        self.functions["unequipEyebrows"] = self.unequipEyebrows
++        self.functions["equipEyelashes"] = self.equipEyelashes
++        self.functions["unequipEyelashes"] = self.unequipEyelashes
++        self.functions["setSkin"] = self.setSkin
++
++        # Query what is currently equipped
++        self.functions["getEquippedClothes"] = self.getEquippedClothes
++        self.functions["getEquippedHair"] = self.getEquippedHair
++        self.functions["getEquippedEyebrows"] = self.getEquippedEyebrows
++        self.functions["getEquippedEyelashes"] = self.getEquippedEyelashes
++
++    # -- discovery ----------------------------------------------------------
++
++    def getAvailableClothes(self, conn, jsonCall):
++        jsonCall.data = (self.api.assets.getAvailableSystemClothes() +
++                         self.api.assets.getAvailableUserClothes())
++
++    def getAvailableHair(self, conn, jsonCall):
++        jsonCall.data = (self.api.assets.getAvailableSystemHair() +
++                         self.api.assets.getAvailableUserHair())
++
++    def getAvailableEyebrows(self, conn, jsonCall):
++        jsonCall.data = (self.api.assets.getAvailableSystemEyebrows() +
++                         self.api.assets.getAvailableUserEyebrows())
++
++    def getAvailableEyelashes(self, conn, jsonCall):
++        jsonCall.data = (self.api.assets.getAvailableSystemEyelashes() +
++                         self.api.assets.getAvailableUserEyelashes())
++
++    def getAvailableSkins(self, conn, jsonCall):
++        jsonCall.data = (self.api.assets.getAvailableSystemSkins() +
++                         self.api.assets.getAvailableUserSkins())
++
++    # -- equip / unequip ----------------------------------------------------
++
++    def equipClothes(self, conn, jsonCall):
++        self.api.assets.equipClothes(jsonCall.getParam("path"))
++        jsonCall.setData("OK")
++
++    def unequipClothes(self, conn, jsonCall):
++        self.api.assets.unequipClothes(jsonCall.getParam("path"))
++        jsonCall.setData("OK")
++
++    def unequipAllClothes(self, conn, jsonCall):
++        self.api.assets.unequipAllClothes()
++        jsonCall.setData("OK")
++
++    def equipHair(self, conn, jsonCall):
++        self.api.assets.equipHair(jsonCall.getParam("path"))
++        jsonCall.setData("OK")
++
++    def unequipHair(self, conn, jsonCall):
++        self.api.assets.unequipHair(jsonCall.getParam("path"))
++        jsonCall.setData("OK")
++
++    def equipEyebrows(self, conn, jsonCall):
++        self.api.assets.equipEyebrows(jsonCall.getParam("path"))
++        jsonCall.setData("OK")
++
++    def unequipEyebrows(self, conn, jsonCall):
++        self.api.assets.unequipEyebrows(jsonCall.getParam("path"))
++        jsonCall.setData("OK")
++
++    def equipEyelashes(self, conn, jsonCall):
++        self.api.assets.equipEyelashes(jsonCall.getParam("path"))
++        jsonCall.setData("OK")
++
++    def unequipEyelashes(self, conn, jsonCall):
++        self.api.assets.unequipEyelashes(jsonCall.getParam("path"))
++        jsonCall.setData("OK")
++
++    def setSkin(self, conn, jsonCall):
++        """Set the body skin from a MHMAT material file path."""
++        path = jsonCall.getParam("path")
++        mat = material.fromFile(path)
++        self.human.setMaterial(mat)
++        jsonCall.setData("OK")
++
++    # -- query --------------------------------------------------------------
++
++    def getEquippedClothes(self, conn, jsonCall):
++        jsonCall.data = self.api.assets.getEquippedClothes()
++
++    def getEquippedHair(self, conn, jsonCall):
++        jsonCall.data = self.api.assets.getEquippedHair()
++
++    def getEquippedEyebrows(self, conn, jsonCall):
++        jsonCall.data = self.api.assets.getEquippedEyebrows()
++
++    def getEquippedEyelashes(self, conn, jsonCall):
++        jsonCall.data = self.api.assets.getEquippedEyelashes()
+diff --git a/plugins/8_server_socket/fileops.py b/plugins/8_server_socket/fileops.py
+new file mode 100644
+index 00000000..ae81db55
+--- /dev/null
++++ b/plugins/8_server_socket/fileops.py
+@@ -0,0 +1,79 @@
++#!/usr/bin/python3
++# -*- coding: utf-8 -*-
++
++"""
++File operations for the MakeHuman server socket bridge.
++
++Lets a socket client save / load the native .mhm character format and export
++the current character to the common 3D interchange formats via mhapi.exports.
++
++All handlers follow the AbstractOp convention: they receive (conn, jsonCall)
++and set jsonCall.data, or call jsonCall.setError(...) on failure.
++"""
++
++from core import G
++
++from .abstractop import AbstractOp
++
++
++class SocketFileOps(AbstractOp):
++
++    def __init__(self, sockettaskview):
++        super().__init__(sockettaskview)
++        self.functions["saveMHM"] = self.saveMHM
++        self.functions["loadMHM"] = self.loadMHM
++        self.functions["exportOBJ"] = self.exportOBJ
++        self.functions["exportFBX"] = self.exportFBX
++        self.functions["exportDAE"] = self.exportDAE
++        self.functions["exportMHX2"] = self.exportMHX2
++
++    def saveMHM(self, conn, jsonCall):
++        """Save the current character as a .mhm file at the given path.
++
++        Uses Human.save() directly (rather than guisave.saveMHM) so that it
++        works even when the window is minimized -- it still runs the full
++        save-handler chain (materials, skeleton, clothes, ...) but skips the
++        screen-grab thumbnail.
++        """
++        path = jsonCall.getParam("path")
++        if not path:
++            jsonCall.setError("Missing 'path' parameter")
++            return
++        if not path.lower().endswith(".mhm"):
++            path += ".mhm"
++        self.human.save(path)
++        jsonCall.setData(path)
++
++    def loadMHM(self, conn, jsonCall):
++        """Load a .mhm file into the current character."""
++        path = jsonCall.getParam("path")
++        if not path:
++            jsonCall.setError("Missing 'path' parameter")
++            return
++        G.app.loadHumanMHM(path)
++        jsonCall.setData("OK")
++
++    def _useExportsDir(self, jsonCall):
++        # Default False so the client's full path is honoured; pass
++        # useExportsDir=true to drop the file in MakeHuman's exports folder.
++        return bool(jsonCall.getParam("useExportsDir"))
++
++    def exportOBJ(self, conn, jsonCall):
++        self.api.exports.exportAsOBJ(jsonCall.getParam("path"), self._useExportsDir(jsonCall))
++        jsonCall.setData("OK")
++
++    def exportFBX(self, conn, jsonCall):
++        self.api.exports.exportAsFBX(jsonCall.getParam("path"), self._useExportsDir(jsonCall))
++        jsonCall.setData("OK")
++
++    def exportDAE(self, conn, jsonCall):
++        self.api.exports.exportAsDAE(jsonCall.getParam("path"), self._useExportsDir(jsonCall))
++        jsonCall.setData("OK")
++
++    def exportMHX2(self, conn, jsonCall):
++        exporter = self.api.exports.getMHX2Exporter()
++        if exporter is None:
++            jsonCall.setError("MHX2 exporter is not installed")
++            return
++        self.api.exports.exportAsMHX2(jsonCall.getParam("path"), self._useExportsDir(jsonCall))
++        jsonCall.setData("OK")
+diff --git a/plugins/8_server_socket/modops.py b/plugins/8_server_socket/modops.py
+index 200fb064..da1bda7d 100644
+--- a/plugins/8_server_socket/modops.py
++++ b/plugins/8_server_socket/modops.py
+@@ -8,8 +8,14 @@ class SocketModifierOps(AbstractOp):
+     def __init__(self, sockettaskview):
+         super().__init__(sockettaskview)
+         self.functions["applyModifier"] = self.applyModifier
++        self.functions["applyTarget"] = self.applyTarget
+         self.functions["getAppliedTargets"] = self.getAppliedTargets
+         self.functions["getAvailableModifierNames"] = self.getAvailableModifierNames
++        self.functions["setGender"] = self.setGender
++        self.functions["setAge"] = self.setAge
++        self.functions["setWeight"] = self.setWeight
++        self.functions["setMuscle"] = self.setMuscle
++        self.functions["setHeight"] = self.setHeight
+ 
+     def getAvailableModifierNames(self,conn,jsonCall):
+         jsonCall.data = self.api.modifiers.getAvailableModifierNames()
+@@ -29,5 +35,40 @@ class SocketModifierOps(AbstractOp):
+         self.api.modifiers.applyModifier(modifierName,power,True)
+         jsonCall.setData("OK")
+ 
++    def applyTarget(self,conn,jsonCall):
++        targetName = jsonCall.getParam("target")
++        power = float(jsonCall.getParam("power"))
++        self.api.modifiers.applyTarget(targetName, power, True)
++        jsonCall.setData("OK")
++
++    def _macroValue(self, jsonCall):
++        """Read and clamp a macro 'value' param to the 0.0 - 1.0 range."""
++        value = float(jsonCall.getParam("value"))
++        if value < 0.0:
++            value = 0.0
++        if value > 1.0:
++            value = 1.0
++        return value
++
++    def setGender(self,conn,jsonCall):
++        self.api.modifiers.setGender(self._macroValue(jsonCall))
++        jsonCall.setData("OK")
++
++    def setAge(self,conn,jsonCall):
++        self.api.modifiers.setAge(self._macroValue(jsonCall))
++        jsonCall.setData("OK")
++
++    def setWeight(self,conn,jsonCall):
++        self.api.modifiers.setWeight(self._macroValue(jsonCall))
++        jsonCall.setData("OK")
++
++    def setMuscle(self,conn,jsonCall):
++        self.api.modifiers.setMuscle(self._macroValue(jsonCall))
++        jsonCall.setData("OK")
++
++    def setHeight(self,conn,jsonCall):
++        self.api.modifiers.setHeight(self._macroValue(jsonCall))
++        jsonCall.setData("OK")
++
+ 
+ 

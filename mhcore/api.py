@@ -78,6 +78,15 @@ class MHHuman:
     def equip_clothes(self, path):
         return _assets.equip_clothes(self._h, path)
 
+    def unequip_clothes(self, path):
+        return _assets.unequip_clothes(self._h, path)
+
+    def unequip_all_clothes(self):
+        _assets.unequip_all_clothes(self._h); return self
+
+    def unequip_hair(self):
+        _assets.unequip_hair(self._h); return self
+
     def equip_hair(self, path):
         _assets.equip_hair(self._h, path); return self
 

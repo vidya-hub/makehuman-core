@@ -72,6 +72,32 @@ def test_equip_and_export(tmp_path):
     assert len(groups) >= 2  # body + at least one proxy
 
 
+def test_unequip_clothes_and_hair():
+    h = mhcore.new_human()
+    clothes = h.list_available("clothes")
+    if not clothes:
+        pytest.skip("no clothes bundled")
+
+    h.equip_clothes(clothes[0])
+    assert h.get_equipped_clothes()
+    assert h.unequip_clothes(clothes[0]) is True
+    assert h.get_equipped_clothes() == []
+    assert h.unequip_clothes(clothes[0]) is False
+
+    h.equip_clothes(clothes[0])
+    if len(clothes) > 1:
+        h.equip_clothes(clothes[1])
+    h.unequip_all_clothes()
+    assert h.get_equipped_clothes() == []
+
+    hair = h.list_available("hair")
+    if hair:
+        h.equip_hair(hair[0])
+        assert h.human.hairProxy is not None
+        h.unequip_hair()
+        assert h.human.hairProxy is None
+
+
 def test_mhm_full_roundtrip(tmp_path):
     h = mhcore.new_human()
     h.set_gender(0.9).set_age(0.55).set_muscle(0.7)

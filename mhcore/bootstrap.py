@@ -65,33 +65,52 @@ def init() -> None:
     import numpy
     numpy.seterr(all="ignore")
 
-    import getpath  # vendored, pure
+    # MakeHuman prints a startup line to stdout on first import of `core` and
+    # logs verbosely. Keep the caller's stdout pristine -- this is essential
+    # when mhcore backs a stdio server (e.g. an MCP server), where anything on
+    # stdout corrupts the protocol -- and route/quiet the noise to stderr.
+    import contextlib
+    with contextlib.redirect_stdout(sys.stderr):
+        import getpath  # vendored, pure
 
-    # MakeHuman's getSysPath returns "./<sub>" (relative to cwd, because the app
-    # chdirs to its install dir). As a library we must not chdir the caller's
-    # process, so point the system path at the bundled repo root instead.
-    # getSysDataPath() calls getSysPath() by module-global lookup, so patching
-    # this one function is sufficient.
-    def _sys_path(subPath=""):
-        p = os.path.join(_ROOT, subPath) if subPath else _ROOT
-        return getpath.formatPath(p)
-    getpath.getSysPath = _sys_path
+        # MakeHuman's getSysPath returns "./<sub>" (relative to cwd, because the
+        # app chdirs to its install dir). As a library we must not chdir the
+        # caller's process, so point the system path at the bundled repo root.
+        # getSysDataPath() calls getSysPath() by module-global lookup, so
+        # patching this one function is sufficient.
+        def _sys_path(subPath=""):
+            p = os.path.join(_ROOT, subPath) if subPath else _ROOT
+            return getpath.formatPath(p)
+        getpath.getSysPath = _sys_path
 
-    # Shims must be installed before importing any module that does import mh.
-    from . import _shims
-    _shims.install(getpath)
+        # Shims must be installed before importing any module that imports mh.
+        from . import _shims
+        _shims.install(getpath)
 
-    # Install the headless application object on the global G.
-    from core import G  # -> _vendor/lib/core.py
-    from .app import HeadlessApp
-    if not isinstance(getattr(G, "app", None), HeadlessApp):
-        G.app = HeadlessApp()
+        # Install the headless application object on the global G.
+        from core import G  # -> _vendor/lib/core.py
+        from .app import HeadlessApp
+        if not isinstance(getattr(G, "app", None), HeadlessApp):
+            G.app = HeadlessApp()
 
-    # Re-home the .mhm persistence handlers (skeleton/material/proxy/pose/...).
-    from . import handlers
-    handlers.register_all(G.app)
+        # Re-home the .mhm persistence handlers (skeleton/material/proxy/...).
+        from . import handlers
+        handlers.register_all(G.app)
+
+        _quiet_logging()
 
     _initialized = True
+
+
+def _quiet_logging():
+    """Reduce MakeHuman's very chatty DEBUG logging (goes to stderr).
+
+    Set MHCORE_VERBOSE=1 to keep the full MakeHuman log output.
+    """
+    if os.environ.get("MHCORE_VERBOSE"):
+        return
+    import logging
+    logging.getLogger().setLevel(logging.WARNING)
 
 
 def new_human():

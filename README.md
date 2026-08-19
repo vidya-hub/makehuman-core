@@ -50,13 +50,17 @@ h.export("out/hero.obj")                 # also .fbx, .dae
 
 See `examples/build_character.py` for a runnable end-to-end script.
 
+An MCP server that drives this library in-process (no running MakeHuman) lives
+in [`mcp-server/`](mcp-server/). See that README to install and register it
+with a client.
+
 ## API (`mhcore.MHHuman`)
 
 | Area | Methods |
 |------|---------|
 | Macros | `set_gender/set_age/set_weight/set_muscle/set_height(0.0–1.0)` |
 | Modifiers | `list_modifiers()`, `apply_modifier(name, power)`, `get_applied_targets()` |
-| Assets | `list_available(kind)`, `equip_clothes/equip_hair/equip_eyes/equip_eyebrows/equip_eyelashes/equip_teeth/equip_tongue(path)`, `set_skin(path)` |
+| Assets | `list_available(kind)`, `equip_clothes/equip_hair/equip_eyes/equip_eyebrows/equip_eyelashes/equip_teeth/equip_tongue(path)`, `unequip_clothes/unequip_all_clothes/unequip_hair`, `set_skin(path)` |
 | Rig/pose | `set_skeleton(path)`, `set_pose(bvh)`, `set_expression(bvh)` |
 | Persist | `save_mhm(path)`, `load_mhm(path)` |
 | Export | `export(path, format=None)` — `obj` \| `fbx` \| `dae` |

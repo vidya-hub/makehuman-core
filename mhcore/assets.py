@@ -78,6 +78,29 @@ def equip_clothes(human, path):
     return p.uuid
 
 
+def unequip_clothes(human, path):
+    """Remove a single equipped clothing item, matched by its .mhclo path."""
+    import getpath
+    target = getpath.canonicalPath(path)
+    for uuid, pxy in dict(human.clothesProxies).items():
+        if pxy is not None and getpath.canonicalPath(pxy.file) == target:
+            human.removeClothesProxy(uuid)
+            human.applyAllTargets()
+            return True
+    return False
+
+
+def unequip_all_clothes(human):
+    for uuid in list(human.clothesProxies.keys()):
+        human.removeClothesProxy(uuid)
+    human.applyAllTargets()
+
+
+def unequip_hair(human):
+    human.setHairProxy(None)
+    human.applyAllTargets()
+
+
 def equip_hair(human, path):
     human.setHairProxy(_load_proxy(human, path, "Hair"))
     human.applyAllTargets()
