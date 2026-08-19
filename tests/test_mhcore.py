@@ -98,6 +98,32 @@ def test_unequip_clothes_and_hair():
         assert h.human.hairProxy is None
 
 
+def test_set_pose_deforms_mesh():
+    h = mhcore.new_human()
+    poses = h.list_available("poses")
+    tpose = next((p for p in poses if p.endswith("tpose.bvh")), None)
+    if not tpose:
+        pytest.skip("tpose.bvh not bundled")
+    before = h.human.meshData.coord.copy()
+    h.set_pose(tpose)
+    after = h.human.meshData.coord
+    assert not (before == after).all(), "applying tpose should skin the mesh"
+    h.set_pose("")
+    restored = h.human.meshData.coord
+    assert (before == restored).all(), "clearing pose should restore rest mesh"
+
+
+def test_set_expression_from_mhpose(tmp_path):
+    h = mhcore.new_human()
+    mhpose = os.path.join(tmp_path, "smile.mhpose")
+    with open(mhpose, "w") as f:
+        f.write('{"name":"smile","unit_poses":{"LeftCheekUp":1.0,"RightCheekUp":1.0}}')
+    before = h.human.meshData.coord.copy()
+    h.set_expression(mhpose)
+    after = h.human.meshData.coord
+    assert not (before == after).all(), "expression should move face verts"
+
+
 def test_mhm_full_roundtrip(tmp_path):
     h = mhcore.new_human()
     h.set_gender(0.9).set_age(0.55).set_muscle(0.7)

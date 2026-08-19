@@ -97,9 +97,29 @@ def init() -> None:
         from . import handlers
         handlers.register_all(G.app)
 
+        _patch_numpy2_transforms()
         _quiet_logging()
 
     _initialized = True
+
+
+def _patch_numpy2_transforms():
+    """Vendored transformations.py uses numpy.array(..., copy=False), which
+    raises on NumPy 2 when a dtype conversion is required. Feed it a
+    contiguous float64 view so the original function never needs a copy.
+    """
+    import numpy
+    import transformations as tm
+    if getattr(tm, "_mhcore_numpy2_patch", False):
+        return
+    orig = tm.quaternion_from_matrix
+
+    def quaternion_from_matrix(matrix, isprecise=False):
+        matrix = numpy.ascontiguousarray(matrix, dtype=numpy.float64)
+        return orig(matrix, isprecise)
+
+    tm.quaternion_from_matrix = quaternion_from_matrix
+    tm._mhcore_numpy2_patch = True
 
 
 def _quiet_logging():

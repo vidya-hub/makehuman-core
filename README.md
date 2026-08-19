@@ -61,20 +61,21 @@ with a client.
 | Macros | `set_gender/set_age/set_weight/set_muscle/set_height(0.0–1.0)` |
 | Modifiers | `list_modifiers()`, `apply_modifier(name, power)`, `get_applied_targets()` |
 | Assets | `list_available(kind)`, `equip_clothes/equip_hair/equip_eyes/equip_eyebrows/equip_eyelashes/equip_teeth/equip_tongue(path)`, `unequip_clothes/unequip_all_clothes/unequip_hair`, `set_skin(path)` |
-| Rig/pose | `set_skeleton(path)`, `set_pose(bvh)`, `set_expression(bvh)` |
+| Rig/pose | `set_skeleton(path)`, `set_pose(bvh)`, `set_expression(mhpose)` |
 | Persist | `save_mhm(path)`, `load_mhm(path)` |
 | Export | `export(path, format=None)` — `obj` \| `fbx` \| `dae` |
 
 `kind` for `list_available`: `clothes`, `hair`, `eyes`, `eyebrows`,
-`eyelashes`, `teeth`, `tongue`, `skins`.
+`eyelashes`, `teeth`, `tongue`, `skins`, `poses`, `expressions`.
 
 ## Status / limitations
 
 - Full `.mhm` round-trip: modifiers, skeleton, proxies (clothes/hair/eyes/…),
   skin + per-proxy materials all save and reload faithfully.
 - Export: OBJ, FBX, DAE.
-- `set_pose` / `set_expression` record the BVH reference in the `.mhm` but do
-  not yet apply BVH retargeting/deformation headlessly (planned follow-up).
+- `set_pose` applies a `.bvh` (or `.mhp`) to the base skeleton and skins the
+  mesh. `set_expression` blends a `.mhpose` onto the face bones. Both are
+  written into the `.mhm` and re-applied on load.
 - Skin **textures** are referenced by path in exports; the library never loads
   pixel data (that path is the only Qt dependency and is intentionally avoided).
 

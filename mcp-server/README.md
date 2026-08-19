@@ -74,10 +74,12 @@ Environment variables (optional):
   `set_height`
 - Detail: `list_modifiers`, `apply_modifier`, `get_applied_targets`
 - Asset discovery: `list_available_clothes`, `list_available_hair`,
-  `list_available_skins`, `list_available_eyebrows`, `list_available_eyelashes`
+  `list_available_skins`, `list_available_eyebrows`, `list_available_eyelashes`,
+  `list_available_poses`, `list_available_expressions`
 - Equip: `equip_clothes`, `unequip_clothes`, `unequip_all_clothes`,
   `equip_hair`, `equip_eyebrows`, `equip_eyelashes`, `set_skin`,
   `get_equipped_clothes`
+- Pose: `set_pose` (`.bvh`/`.mhp`), `set_expression` (`.mhpose`) — local backend
 - Persist/export: `save_character`, `load_character`, `export_character`
   (`format` = obj | fbx | dae; `mhx2` requires the socket backend)
 

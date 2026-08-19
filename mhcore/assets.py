@@ -23,6 +23,12 @@ _PROXY_KINDS = {
     "tongue": ("tongue", "*.mhclo"),
 }
 _SKIN_DIR = ("skins", "*.mhmat")
+_FILE_KINDS = {
+    "poses": ("poses", "*.bvh"),
+    "expressions": ("expressions", "*.mhpose"),
+}
+_COMPARE_BONE = "upperleg02.L"
+_face_units = None
 
 
 def _find(root, glob):
@@ -54,6 +60,8 @@ def list_available(kind):
     kind = kind.lower()
     if kind == "skins":
         return _search_dirs(*_SKIN_DIR)
+    if kind in _FILE_KINDS:
+        return _search_dirs(*_FILE_KINDS[kind])
     if kind not in _PROXY_KINDS:
         raise ValueError(f"Unknown asset kind {kind!r}")
     return _search_dirs(*_PROXY_KINDS[kind])
@@ -164,10 +172,132 @@ def set_skeleton(human, path):
 
 
 def set_pose(human, bvh_path):
-    # Record for .mhm round-trip. Full BVH retargeting/application is a
-    # documented follow-up; the pose reference is preserved in the .mhm.
+    """Load a .bvh/.mhp pose onto the base skeleton and skin the mesh."""
+    if not bvh_path:
+        _clear_pose(human)
+        state(human)["pose"] = None
+        expr = state(human).get("expression")
+        if expr:
+            _apply_expression(human, expr)
+        return
+    _apply_pose(human, bvh_path)
     state(human)["pose"] = bvh_path
+    expr = state(human).get("expression")
+    if expr:
+        _apply_expression(human, expr)
 
 
-def set_expression(human, bvh_path):
-    state(human)["expression"] = bvh_path
+def set_expression(human, mhpose_path):
+    """Blend a .mhpose facial expression onto the current pose."""
+    if not mhpose_path:
+        _clear_expression(human)
+        state(human)["expression"] = None
+        return
+    _apply_expression(human, mhpose_path)
+    state(human)["expression"] = mhpose_path
+
+
+def _apply_pose(human, filepath):
+    import bvh as bvh_mod
+    import animation
+    import numpy.linalg as la
+
+    ext = os.path.splitext(filepath)[1].lower()
+    skel = human.getBaseSkeleton()
+    if skel is None:
+        raise RuntimeError("No base skeleton; cannot apply a pose")
+
+    if ext == ".mhp":
+        anim = animation.loadPoseFromMhpFile(filepath, skel)
+    elif ext == ".bvh":
+        bvh_file = bvh_mod.load(filepath, convertFromZUp="auto")
+        if _COMPARE_BONE not in bvh_file.joints:
+            raise ValueError(
+                "BVH does not use MakeHuman's default rig: %s" % filepath)
+        anim = bvh_file.createAnimationTrack(skel)
+        bvh_joint = bvh_file.joints[_COMPARE_BONE]
+        bvh_len = float(la.norm(bvh_joint.children[0].position - bvh_joint.position))
+        if bvh_len:
+            scale = float(skel.getBone(_COMPARE_BONE).length) / bvh_len
+            posedata = anim.getAtFramePos(0, noBake=True)
+            posedata[0, :3, 3] = scale * posedata[0, :3, 3]
+            anim.resetBaked()
+    else:
+        raise ValueError("Unknown pose file type: %s" % ext)
+
+    human.addAnimation(anim)
+    human.setActiveAnimation(anim.name)
+    human.setToFrame(0, update=False)
+    human.setPosed(True)
+
+
+def _clear_pose(human):
+    if human.hasAnimation("expr-lib-pose"):
+        human.removeAnimation("expr-lib-pose")
+    human.resetToRestPose()
+
+
+def _face_pose_units(human):
+    global _face_units
+    if _face_units is not None:
+        return _face_units
+    import json
+    from collections import OrderedDict
+    import bvh as bvh_mod
+    import animation
+    import getpath
+
+    path = getpath.getSysDataPath("poseunits/face-poseunits.bvh")
+    base_bvh = bvh_mod.load(path, allowTranslation="none")
+    base_anim = base_bvh.createAnimationTrack(
+        human.getBaseSkeleton(), name="Expression-Face-PoseUnits")
+    mapping = json.load(
+        open(getpath.getSysDataPath("poseunits/face-poseunits.json"),
+             "r", encoding="utf-8"),
+        object_pairs_hook=OrderedDict)["framemapping"]
+    if len(mapping) != base_bvh.frameCount:
+        raise RuntimeError("face pose-unit BVH/JSON frame count mismatch")
+    unit = animation.PoseUnit(base_anim.name, base_anim._data, mapping)
+    idxs = sorted({b for lst in unit.getAffectedBones() for b in lst})
+    _face_units = (unit, idxs)
+    return _face_units
+
+
+def _current_unmodified_pose(human):
+    pose = human.getActiveAnimation()
+    if pose is not None and getattr(pose, "pose_backref", None) is not None:
+        return pose.pose_backref
+    return pose
+
+
+def _apply_expression(human, mhpose_path):
+    import animation
+
+    unit, face_idxs = _face_pose_units(human)
+    new_pose = animation.poseFromUnitPose("expr-lib-pose", mhpose_path, unit)
+    current = _current_unmodified_pose(human)
+    if current is None:
+        mixed = new_pose
+        mixed.pose_backref = None
+    else:
+        mixed = animation.mixPoses(current, new_pose, face_idxs)
+        mixed.pose_backref = current
+    mixed.name = "expr-lib-pose"
+    human.addAnimation(mixed)
+    human.setActiveAnimation("expr-lib-pose")
+    human.setPosed(True)
+    human.refreshPose()
+
+
+def _clear_expression(human):
+    org = _current_unmodified_pose(human)
+    if org is None:
+        human.setActiveAnimation(None)
+    elif human.hasAnimation(org.name):
+        human.setActiveAnimation(org.name)
+    else:
+        human.addAnimation(org)
+        human.setActiveAnimation(org.name)
+    if human.hasAnimation("expr-lib-pose"):
+        human.removeAnimation("expr-lib-pose")
+    human.refreshPose(updateIfInRest=True)

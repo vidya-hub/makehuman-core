@@ -201,14 +201,26 @@ def _load_pose(human, values, strict):
     if values[0] == "status" or len(values) < 2:
         return
     from . import assets
-    assets.state(human)["pose"] = _resolve(values[1]) or values[1]
+    path = _resolve(values[1])
+    if path:
+        assets.set_pose(human, path)
+        return
+    assets.state(human)["pose"] = values[1]
+    if strict:
+        raise RuntimeError("Could not resolve pose %s" % values[1])
 
 
 def _load_expression(human, values, strict):
     if values[0] == "status" or len(values) < 2:
         return
     from . import assets
-    assets.state(human)["expression"] = _resolve(values[1]) or values[1]
+    path = _resolve(values[1])
+    if path:
+        assets.set_expression(human, path)
+        return
+    assets.state(human)["expression"] = values[1]
+    if strict:
+        raise RuntimeError("Could not resolve expression %s" % values[1])
 
 
 def _load_noop(human, values, strict):

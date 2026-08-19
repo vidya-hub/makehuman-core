@@ -90,6 +90,14 @@ class LocalBackend:
     def get_equipped_clothes(self):
         return self._h().get_equipped_clothes()
 
+    def set_pose(self, path):
+        self._h().set_pose(path)
+        return "OK"
+
+    def set_expression(self, path):
+        self._h().set_expression(path)
+        return "OK"
+
     # -- persist / export --------------------------------------------------
     def save(self, path):
         return self._h().save_mhm(path)
@@ -170,6 +178,12 @@ class SocketBackend:
 
     def get_equipped_clothes(self):
         return self._client.call("getEquippedClothes")
+
+    def set_pose(self, path):
+        raise BackendError("set_pose is only available on the local backend")
+
+    def set_expression(self, path):
+        raise BackendError("set_expression is only available on the local backend")
 
     def save(self, path):
         return self._client.call("saveMHM", path=path)

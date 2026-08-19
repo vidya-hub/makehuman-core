@@ -165,6 +165,18 @@ def list_available_eyelashes() -> str:
     return _safe(lambda: _b().list_available("eyelashes"))
 
 
+@mcp.tool()
+def list_available_poses() -> str:
+    """List paths to bundled pose BVH files (e.g. tpose)."""
+    return _safe(lambda: _b().list_available("poses"))
+
+
+@mcp.tool()
+def list_available_expressions() -> str:
+    """List paths to installed facial expression .mhpose files (may be empty)."""
+    return _safe(lambda: _b().list_available("expressions"))
+
+
 # --------------------------------------------------------------------------
 # Assets: equip / unequip. 'path' comes from a list_available_* call.
 # --------------------------------------------------------------------------
@@ -215,6 +227,25 @@ def set_skin(path: str) -> str:
 def get_equipped_clothes() -> str:
     """List the .mhclo paths of currently equipped clothing."""
     return _safe(lambda: _b().get_equipped_clothes())
+
+
+@mcp.tool()
+def set_pose(path: str) -> str:
+    """Apply a body pose from a .bvh (or .mhp) path. Local backend only.
+
+    Use list_available_poses to discover bundled poses such as tpose.
+    Pass an empty path to clear the pose.
+    """
+    return _safe(lambda: _b().set_pose(path))
+
+
+@mcp.tool()
+def set_expression(path: str) -> str:
+    """Apply a facial expression from a .mhpose file. Local backend only.
+
+    Blends onto the current body pose. Pass an empty path to clear it.
+    """
+    return _safe(lambda: _b().set_expression(path))
 
 
 # --------------------------------------------------------------------------

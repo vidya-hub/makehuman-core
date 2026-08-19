@@ -72,7 +72,7 @@ class MHHuman:
     # -- assets ------------------------------------------------------------
     def list_available(self, kind):
         """List installed asset paths. kind: clothes/hair/eyes/eyebrows/
-        eyelashes/teeth/tongue/skins."""
+        eyelashes/teeth/tongue/skins/poses/expressions."""
         return _assets.list_available(kind)
 
     def equip_clothes(self, path):

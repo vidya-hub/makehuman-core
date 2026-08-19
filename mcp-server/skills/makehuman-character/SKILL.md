@@ -30,8 +30,11 @@ then assets, then persist:
 3. **Assets** (optional) — discover with `list_available_*`, then `equip_*` /
    `set_skin`. Asset lists are **machine-specific** (they depend on what is
    installed), so always list before equipping; never guess a path.
-4. **Persist** — `save_character(path)` writes a native `.mhm` (captures
-   everything: modifiers, materials, skeleton, equipped assets). Optionally
+4. **Pose / expression** (optional) — `list_available_poses` then `set_pose`.
+   Expressions are `.mhpose` files (`list_available_expressions`; the bundle
+   may ship none). Pose and expression are local-backend only.
+5. **Persist** — `save_character(path)` writes a native `.mhm` (captures
+   everything: modifiers, materials, skeleton, equipped assets, pose). Optionally
    `export_character(path, format)` for `obj` | `fbx` | `dae` (`mhx2` is
    socket-backend only).
 
