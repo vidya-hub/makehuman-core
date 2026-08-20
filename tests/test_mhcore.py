@@ -129,7 +129,7 @@ def test_fbx_export_keeps_bone_lengths():
     h = mhcore.new_human()
     h.set_skeleton(mhcore.data_path("rigs/default.mhskel"))
     cfg = _fbx_config(h.human)
-    assert cfg.scale == 1.0
+    assert abs(cfg.scale - 10.0) < 1e-9
     skel = h.human.getSkeleton()
     if cfg.scale != 1:
         skel = skel.scaled(cfg.scale)
@@ -138,7 +138,7 @@ def test_fbx_export_keeps_bone_lengths():
             b.getRelativeMatrix(cfg.meshOrientation, cfg.localBoneAxis, cfg.offset)[:3, 3]))
         for b in skel.getBones() if b.parent
     ]
-    assert max(lengths) < 8.0, "bone local translation exploded: %s" % max(lengths)
+    assert max(lengths) < 40.0, "bone local translation exploded: %s" % max(lengths)
 
 
 def test_helper_bones_are_short_for_export():
@@ -273,6 +273,16 @@ def test_export_rig_full_keeps_face_bones(tmp_path):
     s = _read(dae)
     assert 'type="JOINT"' in s
     assert re.search(r"oris|levator|temporalis", s), "full rig keeps face muscles"
+
+
+def test_fbx_deform_has_no_face_helpers(tmp_path):
+    h = mhcore.new_human()
+    h.set_gender(1.0).set_age(0.5)
+    fbx = os.path.join(tmp_path, "d.fbx")
+    h.export(fbx, format="fbx", rig="deform")
+    data = open(fbx, "rb").read()
+    for name in (b"tongue00", b"oris01", b"temporalis01", b"levator"):
+        assert name not in data, name
 
 
 def test_deform_rig_is_clean_and_fully_skinned():

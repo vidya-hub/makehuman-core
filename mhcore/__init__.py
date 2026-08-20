@@ -15,7 +15,7 @@ Quick start::
 
 from __future__ import annotations
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 from .bootstrap import init, new_human as _new_base_human, data_path
 

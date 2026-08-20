@@ -67,13 +67,20 @@ def _fbx_config(human, scale=1.0, unit="dm", feet_on_ground=True, use_normals=Tr
     import export as export_mod
 
     class FbxConfig(_OrientationMixin, export_mod.ExportConfig):
-        pass
+        yUpFaceZ = False
+        yUpFaceX = False
+        zUpFaceNegY = True
+        zUpFaceX = False
 
     cfg = FbxConfig()
     cfg.useRelPaths = False
     cfg.useMaterials = True
     cfg.binary = True
-    return _configure(cfg, human, scale, unit, feet_on_ground, use_normals)
+    cfg = _configure(cfg, human, scale, unit, feet_on_ground, use_normals)
+    # Same as the official MH FBX plugin: dm → cm so Blender's cm importer
+    # yields a ~1.7 m human. UnitScaleFactor stays 10 (vendor default).
+    cfg.scale *= 10
+    return cfg
 
 
 def _dae_config(human, scale=1.0, unit="dm", feet_on_ground=True, use_normals=True):
@@ -97,10 +104,31 @@ def export_obj(human, filepath, **kw):
 
 
 def export_fbx(human, filepath, **kw):
+    """FBX for Blender: Z-up meshes (same as bones), official cm scale."""
+    import numpy as np
     from _exporters.fbx import mh2fbx
+
     cfg = _fbx_config(human, **kw)
     _ensure_dir(filepath)
-    mh2fbx.exportFbx(filepath, cfg)
+    cfg.feetOnGround = False  # offset would be Y-up; mesh is already Z-up
+
+    saved = []
+    for obj in human.getObjects(excludeZeroFaceObjs=not cfg.hiddenGeom):
+        mesh = obj.mesh
+        orig = np.asarray(mesh.coord, dtype=np.float32).copy()
+        saved.append((mesh, orig))
+        c = orig.copy()
+        y, z = c[:, 1].copy(), c[:, 2].copy()
+        c[:, 1] = -z
+        c[:, 2] = y
+        mesh.setCoords(c)
+        mesh.calcNormals()
+    try:
+        mh2fbx.exportFbx(filepath, cfg)
+    finally:
+        for mesh, orig in saved:
+            mesh.setCoords(orig)
+            mesh.calcNormals()
     return filepath
 
 

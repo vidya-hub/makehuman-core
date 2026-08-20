@@ -287,7 +287,7 @@ def build_deform_skeleton(human, drop=_is_face_muscle):
         raise RuntimeError("No base skeleton to derive a deform rig from")
 
     full = base.createFromPose()                 # follows the current morph
-    ref_weights = human.getVertexWeights(full)   # weights keyed by full bone names
+    ref_weights = human.getVertexWeights()       # base-rig weights, keyed by bone name
     bones = full.getBones()                      # breadth-first: parents first
     keep = {b.name for b in bones if not drop(b.name)}
 
@@ -322,15 +322,19 @@ def build_deform_skeleton(human, drop=_is_face_muscle):
                        reference_bones=[b.name], weight_reference_bones=wref)
 
     deform.updateJoints(human.meshData)
-    deform.vertexWeights = deform.getVertexWeights(ref_weights, force_remap=True)
+    if ref_weights is not None:
+        deform.vertexWeights = deform.getVertexWeights(ref_weights, force_remap=True)
     _clamp_helper_bone_tails(deform)
     import numpy as np
     for bone in deform.getBones():
+        if bone.children:
+            bone.tailPos[:] = bone.children[0].headPos
+            continue
         d = bone.tailPos - bone.headPos
         length = float(np.linalg.norm(d))
-        limit = 0.3 if bone.name.lower() == "root" else 4.0
-        if length > limit:
-            bone.tailPos[:] = bone.headPos + d * (min(0.3, limit) / length)
+        if bone.name.lower() == "root" or length > 4.0:
+            if length > 1e-8:
+                bone.tailPos[:] = bone.headPos + d * (0.3 / length)
     deform.build()
     return deform
 

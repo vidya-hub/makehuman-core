@@ -38,8 +38,9 @@ then assets, then persist:
    is needed. Use `rig="full"` only if you want the 163-bone face rig,
    `rig="none"` for mesh only. OBJ has no armature.
 
-In Blender: File → Import → FBX, scale **1.0**. Do **not** enable
-Automatic Bone Orientation. The character should import ~1.6 m tall.
+In Blender: File → Import → FBX with defaults (scale 1.0, Automatic Bone
+Orientation off). The FBX is metres and Z-up; the character should stand
+~1.6 m tall with a body rig (no face-bone star). Do not post-rotate.
 
 Use `new_character` to discard the current human and start over.
 
