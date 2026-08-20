@@ -69,10 +69,11 @@ def _fbx_config(human, scale=1.0, unit="dm", feet_on_ground=True, use_normals=Tr
     import export as export_mod
 
     class FbxConfig(_OrientationMixin, export_mod.ExportConfig):
+        # UpAxis=Z so Blender does not put +90X on the armature. Bones are
+        # rotated to match. Mesh verts stay Y-up; Blender's skin parent_inverse
+        # RotX then stands the character up.
         yUpFaceZ = False
-        yUpFaceX = False
         zUpFaceNegY = True
-        zUpFaceX = False
 
     cfg = FbxConfig()
     cfg.useRelPaths = False
@@ -106,54 +107,12 @@ def export_obj(human, filepath, **kw):
 
 
 def export_fbx(human, filepath, **kw):
-    """FBX for Blender: Z-up meshes (same as bones), official cm scale."""
-    import numpy as np
+    """FBX for Blender: Z-up file, Y-up verts, cm scale."""
     from _exporters.fbx import mh2fbx
 
     cfg = _fbx_config(human, **kw)
     _ensure_dir(filepath)
-    cfg.feetOnGround = False
-
-    def _to_z_up(coord):
-        c = np.asarray(coord, dtype=np.float32).copy()
-        y, z = c[:, 1].copy(), c[:, 2].copy()
-        c[:, 1] = -z
-        c[:, 2] = y
-        return c
-
-    saved = []
-    seen = set()
-    meshes = [human.meshData]
-    for obj in human.getObjects(excludeZeroFaceObjs=False):
-        meshes.append(obj.mesh)
-        seed = obj.getSeedMesh() if hasattr(obj, "getSeedMesh") else None
-        if seed is not None:
-            meshes.append(seed)
-    for mesh in meshes:
-        if mesh is None or id(mesh) in seen:
-            continue
-        seen.add(id(mesh))
-        orig = np.asarray(mesh.coord, dtype=np.float32).copy()
-        saved.append((mesh, orig))
-        mesh.setCoords(_to_z_up(orig))
-        mesh.calcNormals()
-
-    mesh_cls = type(human.meshData)
-    orig_clone = mesh_cls.clone
-
-    # Live mesh is already Z-up; clone only scales. Never filter masked verts
-    # (that is what punched triangular holes under clothes).
-    def _clone(self, scale=1.0, filterMaskedVerts=False):
-        return orig_clone(self, scale, False)
-
-    mesh_cls.clone = _clone
-    try:
-        mh2fbx.exportFbx(filepath, cfg)
-    finally:
-        mesh_cls.clone = orig_clone
-        for mesh, orig in saved:
-            mesh.setCoords(orig)
-            mesh.calcNormals()
+    mh2fbx.exportFbx(filepath, cfg)
     return filepath
 
 
