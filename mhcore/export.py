@@ -52,6 +52,8 @@ def _configure(cfg, human, scale, unit, feet_on_ground, use_normals):
     cfg.unit = unit
     cfg.feetOnGround = feet_on_ground
     cfg.useNormals = use_normals
+    # Keep all body faces. Clothes deleteVerts punch holes in the body; after
+    # morphing (kids especially) those holes no longer sit under the cloth.
     cfg.hiddenGeom = False
     return cfg
 
@@ -110,22 +112,45 @@ def export_fbx(human, filepath, **kw):
 
     cfg = _fbx_config(human, **kw)
     _ensure_dir(filepath)
-    cfg.feetOnGround = False  # offset would be Y-up; mesh is already Z-up
+    cfg.feetOnGround = False
 
-    saved = []
-    for obj in human.getObjects(excludeZeroFaceObjs=not cfg.hiddenGeom):
-        mesh = obj.mesh
-        orig = np.asarray(mesh.coord, dtype=np.float32).copy()
-        saved.append((mesh, orig))
-        c = orig.copy()
+    def _to_z_up(coord):
+        c = np.asarray(coord, dtype=np.float32).copy()
         y, z = c[:, 1].copy(), c[:, 2].copy()
         c[:, 1] = -z
         c[:, 2] = y
-        mesh.setCoords(c)
+        return c
+
+    saved = []
+    seen = set()
+    meshes = [human.meshData]
+    for obj in human.getObjects(excludeZeroFaceObjs=False):
+        meshes.append(obj.mesh)
+        seed = obj.getSeedMesh() if hasattr(obj, "getSeedMesh") else None
+        if seed is not None:
+            meshes.append(seed)
+    for mesh in meshes:
+        if mesh is None or id(mesh) in seen:
+            continue
+        seen.add(id(mesh))
+        orig = np.asarray(mesh.coord, dtype=np.float32).copy()
+        saved.append((mesh, orig))
+        mesh.setCoords(_to_z_up(orig))
         mesh.calcNormals()
+
+    mesh_cls = type(human.meshData)
+    orig_clone = mesh_cls.clone
+
+    # Live mesh is already Z-up; clone only scales. Never filter masked verts
+    # (that is what punched triangular holes under clothes).
+    def _clone(self, scale=1.0, filterMaskedVerts=False):
+        return orig_clone(self, scale, False)
+
+    mesh_cls.clone = _clone
     try:
         mh2fbx.exportFbx(filepath, cfg)
     finally:
+        mesh_cls.clone = orig_clone
         for mesh, orig in saved:
             mesh.setCoords(orig)
             mesh.calcNormals()

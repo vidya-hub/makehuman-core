@@ -275,6 +275,20 @@ def test_export_rig_full_keeps_face_bones(tmp_path):
     assert re.search(r"oris|levator|temporalis", s), "full rig keeps face muscles"
 
 
+def test_dressed_export_keeps_body_faces(tmp_path):
+    """Clothes must not punch holes in the exported body."""
+    h = mhcore.new_human()
+    clothes = h.list_available("clothes")
+    if not clothes:
+        pytest.skip("no clothes")
+    h.equip_clothes(clothes[0])
+    obj = os.path.join(tmp_path, "dressed.obj")
+    h.export(obj, format="obj", rig="none")
+    faces = sum(1 for line in open(obj) if line.startswith("f "))
+    # unmasked body ~13378 faces plus clothes; deleteVerts would drop thousands
+    assert faces > 14000, "body faces were stripped under clothes: %d" % faces
+
+
 def test_fbx_deform_has_no_face_helpers(tmp_path):
     h = mhcore.new_human()
     h.set_gender(1.0).set_age(0.5)
