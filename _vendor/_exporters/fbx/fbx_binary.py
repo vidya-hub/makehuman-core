@@ -317,7 +317,11 @@ def fbx_data_mesh_element(objectsParent, key, id, properties, coord, fvert, vnor
 
     elem_data_single_float64_array(lay_nor, b"Normals", t_ln)
 
-    elem_data_single_int32_array(lay_nor, b"NormalsIndex", fvert_.astype(np.int32).reshape(-1))
+    # PolygonVertexIndex negates the last corner (~idx) as an end marker.
+    # NormalsIndex must be the raw vertex indices or Blender imports garbage
+    # custom normals (faceted / inverted shading on every triangle).
+    nidx = np.ascontiguousarray(fvert[:, :vertsperface], dtype=np.int32)
+    elem_data_single_int32_array(lay_nor, b"NormalsIndex", nidx.reshape(-1))
     del t_ln
 
     # TODO export tangents
