@@ -159,6 +159,19 @@ def export(human, filepath, format=None, rig="deform", scale=None, unit=None,
     prev = human.getSkeleton()
     skel = assets.resolve_export_skeleton(human, rig)
     human.setSkeleton(skel)
+    human.getSkeleton()  # bake joints
+    assets._clamp_helper_bone_tails(human.getSkeleton())
+    skel = human.getSkeleton()
+    if skel is not None:
+        import numpy as np
+        for bone in skel.getBones():
+            d = bone.tailPos - bone.headPos
+            length = float(np.linalg.norm(d))
+            limit = 0.3 if bone.name.lower() == "root" else 4.0
+            if length > limit:
+                bone.tailPos[:] = bone.headPos + d * (0.3 / length)
+        skel.build()
+        human.skeleton.dirty = False
     try:
         return fn(human, filepath, **kw)
     finally:

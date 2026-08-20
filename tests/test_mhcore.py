@@ -283,6 +283,7 @@ def test_deform_rig_is_clean_and_fully_skinned():
     names = [b.name for b in d.getBones()]
     assert names, "deform rig has bones"
     assert not any(assets._is_face_muscle(n) for n in names), "no face-muscle bones"
+    assert not any("tongue" in n.lower() or n.lower() == "jaw" for n in names)
     vw = d.getVertexWeights()
     assert vw is not None and len(vw.data) == len(names), "every deform bone is weighted"
 

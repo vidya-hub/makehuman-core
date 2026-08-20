@@ -261,12 +261,14 @@ def _clamp_helper_bone_tails(skel, max_len=0.25):
 _FACE_MUSCLE_PREFIX = (
     "levator", "special", "temporalis", "oris", "oculi", "risorius",
     "orbicularis", "buccinator", "nasalis", "mentalis", "depressor",
-    "frontalis", "zygomatic", "labii", "masseter",
+    "frontalis", "zygomatic", "labii", "masseter", "tongue",
 )
 
 
 def _is_face_muscle(name):
     n = name.lower()
+    if n.startswith("eye") or n in ("jaw",):
+        return True
     return any(n.startswith(p) for p in _FACE_MUSCLE_PREFIX)
 
 
@@ -321,6 +323,15 @@ def build_deform_skeleton(human, drop=_is_face_muscle):
 
     deform.updateJoints(human.meshData)
     deform.vertexWeights = deform.getVertexWeights(ref_weights, force_remap=True)
+    _clamp_helper_bone_tails(deform)
+    import numpy as np
+    for bone in deform.getBones():
+        d = bone.tailPos - bone.headPos
+        length = float(np.linalg.norm(d))
+        limit = 0.3 if bone.name.lower() == "root" else 4.0
+        if length > limit:
+            bone.tailPos[:] = bone.headPos + d * (min(0.3, limit) / length)
+    deform.build()
     return deform
 
 
